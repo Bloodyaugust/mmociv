@@ -1,0 +1,148 @@
+@import "reset";
+@import "lib";
+
+$background-color: #303030;
+$button-main-color: #D32F2F;
+$button-active-color: #B71C1C;
+$button-disabled-color: #212121;
+$material-color: #424242;
+$header-color: #212121;
+$text-color: white;
+
+body {
+  background-color: $background-color;
+  color: $text-color;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  width: 100%;
+
+  .button {
+    background-color: $button-main-color;
+    border-radius: 4px;
+    cursor: pointer;
+    height: 40px;
+    line-height: 40px;
+    margin: 15px auto;
+    max-width: 150px;
+    text-align: center;
+    @include card(1);
+  }
+  .button:active {
+    background-color: $button-active-color;
+    @include card(2);
+  }
+  .button.disabled {
+    background-color: $button-disabled-color;
+  }
+
+  .card {
+    background-color: $material-color;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 15px;
+  }
+  .card:hover {
+    @include card(1);
+  }
+  .card.active {
+    @include card(2);
+  }
+
+  .hide {
+    display: none;
+  }
+
+  .player.dead {
+    color: $button-main-color;
+  }
+}
+
+header {
+  background-color: $header-color;
+  color: $text-color;
+  font-size: 2rem;
+  height: 50px;
+  line-height: 50px;
+  padding: 0 10%;
+  text-align: left;
+
+  nav {
+    float: right;
+    width: 25%;
+
+    .icon {
+      background-color: $material-color;
+      border-radius: 16px;
+      @include card(1);
+      cursor: pointer;
+      float: right;
+      height: 32px;
+      margin-left: 16px;
+      margin-top: 8px;
+    }
+    .icon:active {
+      border: solid white 2px;
+      @include card(2);
+    }
+    .icon.active {
+      border: solid white 2px;
+      @include card(3);
+    }
+  }
+}
+
+input {
+  background-color: $material-color;
+  border: none;
+  color: $text-color;
+  height: 30px;
+  margin: 15px;
+  width: calc(100% - 30px);
+}
+input:focus {
+  border-bottom: solid white 1px;
+  outline: 0;
+}
+::-webkit-input-placeholder { /* WebKit, Blink, Edge */
+  color:    $text-color;
+}
+:-moz-placeholder { /* Mozilla Firefox 4 to 18 */
+  color:    $text-color;
+  opacity:  1;
+}
+::-moz-placeholder { /* Mozilla Firefox 19+ */
+  color:    $text-color;
+  opacity:  1;
+}
+:-ms-input-placeholder { /* Internet Explorer 10-11 */
+  color:    $text-color;
+}
+
+section.main-content {
+  width: 80%;
+  margin: 0 10%;
+  text-align: center;
+
+  .icon {
+    height: 32px;
+    margin-bottom: -8px;
+    width: 32px;
+  }
+}
+
+section.hosting {
+  .room-name {
+    color: $button-main-color;
+    display: block;
+    font-size: 4rem;
+  }
+}
+
+section.player-config {
+  .player-data {
+    margin: 15px auto;
+    max-width: 300px;
+  }
+}
