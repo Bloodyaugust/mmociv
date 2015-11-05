@@ -10,27 +10,6 @@ var mustache = require('mustache');
 
 var templates = {}, partials = {}, world = {chunks: []};
 
-(function () {
-  var templateFiles = ['app/templates/index.mustache'],
-    partialFiles = ['app/templates/partials/world.mustache'],
-    filesTotal = templateFiles.length + partialFiles.length,
-    filesLoaded = 0;
-
-  templateFiles.forEach(function (file) {
-    fs.readFile(file, 'utf8', function (err, data) {
-      if (err) throw err;
-      templates[file] = data;
-    });
-  });
-
-  partialFiles.forEach(function (file) {
-    fs.readFile(file, 'utf8', function (err, data) {
-      if (err) throw err;
-      partials[file] = data;
-    });
-  });
-})();
-
 var runArg = (process.argv[2]);
 
 switch (runArg) {
@@ -44,26 +23,59 @@ switch (runArg) {
 }
 
 function startServer () {
-  http.listen(3000, function(){
-    console.log('listening on *:3000');
+  loadTemplates(function () {
+    http.listen(3000, function(){
+      console.log('listening on *:3000');
+    });
+
+    app.use(express.static('bower_components'));
+    app.use(express.static('app'));
+
+    app.get('/', function (req, res) {
+      res.send(mustache.render(templates['app/templates/index.mustache'], world, partials));
+    });
+
+    app.get('/world/chunks/:file', function (req, res) {
+      res.sendFile('./world/chunks/' + req.params.file, {
+        root: __dirname
+      });
+    });
+
+    app.get('/styles/css/:file', function (req, res) {
+      res.sendFile('./styles/css/' + req.params.file, {
+        root: __dirname
+      });
+    });
   });
+}
 
-  app.use(express.static('bower_components'));
-  app.use(express.static('app'));
+function loadTemplates (callback) {
+  var templateFiles = ['app/templates/index.mustache'],
+    partialFiles = ['app/templates/partials/world.mustache'],
+    filesTotal = templateFiles.length + partialFiles.length,
+    filesLoaded = 0;
 
-  app.get('/', function (req, res) {
-    res.send(mustache.render(templates['app/templates/index.mustache'], world, partials));
-  });
+  templateFiles.forEach(function (file) {
+    fs.readFile(file, 'utf8', function (err, data) {
+      if (err) throw err;
+      templates[file] = data;
+      filesLoaded++;
 
-  app.get('/world/chunks/:file', function (req, res) {
-    res.sendFile('./world/chunks/' + req.params.file, {
-      root: __dirname
+      if (filesLoaded === filesTotal) {
+        callback();
+      }
     });
   });
 
-  app.get('/styles/css/:file', function (req, res) {
-    res.sendFile('./styles/css/' + req.params.file, {
-      root: __dirname
+  partialFiles.forEach(function (file) {
+    fs.readFile(file, 'utf8', function (err, data) {
+      if (err) throw err;
+      partials[file] = data;
+      filesLoaded++;
+
+      if (filesLoaded === filesTotal) {
+        callback();
+      }
     });
   });
 }
