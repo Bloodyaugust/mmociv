@@ -10,6 +10,8 @@
     'WIN_STATE': {
       'NONE': 0,
     },
+    'CHUNK_SIDE': 256,
+    'WORLD_SIDE': 3072,
   };
 
   if (typeof window === 'undefined') {

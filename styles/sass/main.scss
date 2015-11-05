@@ -53,10 +53,6 @@ body {
   .hide {
     display: none;
   }
-
-  .player.dead {
-    color: $button-main-color;
-  }
 }
 
 header {
@@ -121,28 +117,12 @@ input:focus {
 }
 
 section.main-content {
-  width: 80%;
-  margin: 0 10%;
+  width: 100%;
   text-align: center;
 
-  .icon {
-    height: 32px;
-    margin-bottom: -8px;
-    width: 32px;
-  }
-}
-
-section.hosting {
-  .room-name {
-    color: $button-main-color;
-    display: block;
-    font-size: 4rem;
-  }
-}
-
-section.player-config {
-  .player-data {
-    margin: 15px auto;
-    max-width: 300px;
+  img {
+    float: left;
+    margin: 0;
+    width: (100 / 12) * 1%;
   }
 }

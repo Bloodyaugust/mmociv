@@ -25,10 +25,12 @@
   },
   "homepage": "https://github.com/Bloodyaugust/mmociv#readme",
   "devDependencies": {
+    "express": "^4.13.3",
     "grunt": "^0.4.5",
     "grunt-contrib-compass": "^1.0.4",
     "grunt-contrib-watch": "^0.6.1",
-    "express": "^4.13.3",
+    "mustache": "^2.2.0",
+    "pngjs": "^2.1.0",
     "socket.io": "^1.3.7"
   }
 }
