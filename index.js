@@ -31,33 +31,41 @@ var templates = {}, partials = {}, world = {chunks: []};
   });
 })();
 
-var testMode = (process.argv[2] === 'test');
+var runArg = (process.argv[2]);
 
-http.listen(3000, function(){
-  console.log('listening on *:3000');
-});
+switch (runArg) {
+  case 'generate':
+    generateWorld();
+    break;
+  default:
+    loadWorld();
+    startServer();
+    break;
+}
 
-app.use(express.static('bower_components'));
-app.use(express.static('app'));
-
-app.get('/', function (req, res) {
-  res.send(mustache.render(templates['app/templates/index.mustache'], world, partials));
-});
-
-app.get('/world/chunks/:file', function (req, res) {
-  res.sendFile('./world/chunks/' + req.params.file, {
-    root: __dirname
+function startServer () {
+  http.listen(3000, function(){
+    console.log('listening on *:3000');
   });
-});
 
-app.get('/styles/css/:file', function (req, res) {
-  res.sendFile('./styles/css/' + req.params.file, {
-    root: __dirname
+  app.use(express.static('bower_components'));
+  app.use(express.static('app'));
+
+  app.get('/', function (req, res) {
+    res.send(mustache.render(templates['app/templates/index.mustache'], world, partials));
   });
-});
 
-if (testMode) {
-  generateWorld();
+  app.get('/world/chunks/:file', function (req, res) {
+    res.sendFile('./world/chunks/' + req.params.file, {
+      root: __dirname
+    });
+  });
+
+  app.get('/styles/css/:file', function (req, res) {
+    res.sendFile('./styles/css/' + req.params.file, {
+      root: __dirname
+    });
+  });
 }
 
 function generateWorld (config) {
@@ -70,6 +78,28 @@ function generateWorld (config) {
     console.log('generating chunk: ' + i);
     i++;
   }
+
+  fs.writeFile('world/world.cfg', JSON.stringify({
+    name: 'world1',
+    numChunks: world.chunks.length,
+  }), function (err) {
+    if (err) throw err;
+    console.log('World saved');
+  });
+}
+
+function loadWorld () {
+  fs.readFile('world/world.cfg', 'utf8', function (err, data) {
+    if (err) throw err;
+    world = JSON.parse(data);
+    world.chunks = [];
+
+    for (var i = 0; i < world.numChunks; i++) {
+      world.chunks.push({
+        image: '/world/chunks/world_chunk' + i + '.png'
+      });
+    }
+  });
 }
 
 function generateChunk (chunkIndex) {
