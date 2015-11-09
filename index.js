@@ -17,8 +17,12 @@ switch (runArg) {
     generateWorld();
     break;
   default:
-    loadWorld();
-    startServer();
+    generateWorld({
+      callback: function () {
+        loadWorld();
+        startServer();
+      }
+    });
     break;
 }
 
@@ -81,22 +85,29 @@ function loadTemplates (callback) {
 }
 
 function generateWorld (config) {
-  var remainingChunks = (constants['WORLD_SIDE'] * constants['WORLD_SIDE']) / (constants['CHUNK_SIDE'] * constants['CHUNK_SIDE']);
+  var remainingChunks = (constants['WORLD_SIDE'] * constants['WORLD_SIDE']) / (constants['CHUNK_SIDE'] * constants['CHUNK_SIDE']),
+    world = {
+      name: 'world',
+      chunks: [],
+      numChunks: remainingChunks,
+      terrainGradientPath: 'terrain-gradient.png',
+    };
 
   noise.seed(config ? config.seed : Math.random());
 
-  for (var i = 0; remainingChunks > 0; remainingChunks--) {
-    generateChunk(i);
-    console.log('generating chunk: ' + i);
-    i++;
-  }
+  loadWorldTerrainGradient('world/' + world.terrainGradientPath, world, function () {
+    for (var i = 0; remainingChunks > 0; remainingChunks--) {
+      generateChunk(i, world);
+      console.log('generating chunk: ' + i);
+      i++;
+    }
 
-  fs.writeFile('world/world.cfg', JSON.stringify({
-    name: 'world1',
-    numChunks: world.chunks.length,
-  }), function (err) {
-    if (err) throw err;
-    console.log('World saved');
+    fs.writeFile('world/world.cfg', JSON.stringify(world), function (err) {
+      if (err) throw err;
+      console.log('World saved');
+
+      config.callback();
+    });
   });
 }
 
@@ -111,10 +122,12 @@ function loadWorld () {
         image: '/world/chunks/world_chunk' + i + '.png'
       });
     }
+
+    loadWorldTerrainGradient('world/' + world.terrainGradientPath, world, function () {});
   });
 }
 
-function generateChunk (chunkIndex) {
+function generateChunk (chunkIndex, world) {
   var initialWorldX = (chunkIndex % (constants['WORLD_SIDE'] / constants['CHUNK_SIDE'])) * constants['CHUNK_SIDE'],
   initialWorldY = Math.floor(chunkIndex / (constants['WORLD_SIDE'] / constants['CHUNK_SIDE'])) * constants['CHUNK_SIDE'],
   newPNG, idx, worldX, worldY;
@@ -128,13 +141,20 @@ function generateChunk (chunkIndex) {
   worldY = initialWorldY;
   for (var y = 0; y < constants['CHUNK_SIDE']; y++) {
     for (var x = 0; x < constants['CHUNK_SIDE']; x++) {
-      result = (noise.simplex2(worldX / constants['CHUNK_SIDE'], worldY / constants['CHUNK_SIDE']) + 1) / 2;
-      resultColor = result * 255;
+      result = noise.sumOctaveSimplex2({
+        x: worldX,
+        y: worldY,
+        iterations: 16,
+        persistence: 0.6,
+        scale: 0.00005
+      });
       idx = (constants['CHUNK_SIDE'] * y + x) << 2;
 
-      newPNG.data[idx] = resultColor;
-      newPNG.data[idx + 1] = resultColor;
-      newPNG.data[idx + 2] = resultColor;
+      result = Math.floor(result);
+
+      newPNG.data[idx] = world.terrainGradient[result].r;
+      newPNG.data[idx + 1] = world.terrainGradient[result].g;
+      newPNG.data[idx + 2] = world.terrainGradient[result].b;
       newPNG.data[idx + 3] = 255;
 
       worldX++;
@@ -148,4 +168,27 @@ function generateChunk (chunkIndex) {
     image: '/world/chunks/world_chunk' + chunkIndex + '.png'
   });
   console.log('Wrote image file: ' + 'world/chunks/world_chunk' + chunkIndex + '.png');
+}
+
+function loadWorldTerrainGradient (path, world, callback) {
+  fs.createReadStream(path).pipe(new png()).on('parsed', function () {
+    var gradientImage = this;
+    world.terrainGradient = [];
+
+    for (var y = 0; y < gradientImage.height; y++) {
+      for (var x = 0; x < gradientImage.width; x++) {
+        var idx = (gradientImage.width * y + x) << 2,
+          idxColor = {};
+
+        idxColor.r = gradientImage.data[idx];
+        idxColor.g = gradientImage.data[idx + 1];
+        idxColor.b = gradientImage.data[idx + 2];
+        idxColor.a = gradientImage.data[idx + 3];
+
+        world.terrainGradient.push(idxColor);
+      }
+    }
+
+    callback();
+  });
 }

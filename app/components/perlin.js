@@ -91,6 +91,36 @@
   var F3 = 1/3;
   var G3 = 1/6;
 
+  module.sumOctaveSimplex2 = function(config) {
+    var maxAmplitude = 0,
+      amplitude = 1,
+      noise = 0,
+      frequency;
+
+    config = config || {};
+    iterations = config.iterations || 2;
+    x = config.x || 0;
+    y = config.y || 0;
+    persistence = config.persistence || 0.1;
+    scale = config.scale || 0.01;
+    low = config.low || 0;
+    high = config.high || 255;
+
+    frequency = scale;
+
+    for (var i = 0; i < iterations; i++) {
+      noise += module.simplex2(x * frequency, y * frequency) * amplitude;
+      maxAmplitude += amplitude;
+      amplitude *= persistence;
+      frequency *= 2;
+    }
+
+    noise /= maxAmplitude;
+    noise = noise * (high - low) / 2 + (high + low) / 2;
+
+    return noise;
+  };
+
   // 2D simplex noise
   module.simplex2 = function(xin, yin) {
     var n0, n1, n2; // Noise contributions from the three corners
