@@ -93,7 +93,9 @@ function generateWorld (config) {
       terrainGradientPath: 'terrain-gradient.png',
     };
 
-  noise.seed(config ? config.seed : Math.random());
+  config = config || {};
+
+  noise.seed(config.seed ? config.seed : Math.random());
 
   loadWorldTerrainGradient('world/' + world.terrainGradientPath, world, function () {
     for (var i = 0; remainingChunks > 0; remainingChunks--) {
@@ -146,15 +148,18 @@ function generateChunk (chunkIndex, world) {
         y: worldY,
         iterations: 16,
         persistence: 0.6,
-        scale: 0.00005
+        scale: 0.001
       });
       idx = (constants['CHUNK_SIDE'] * y + x) << 2;
+      lerpedColor = {};
 
-      result = Math.floor(result);
+      lerpedColor.r = result % 1 + world.terrainGradient[Math.floor(result)].r;
+      lerpedColor.g = result % 1 + world.terrainGradient[Math.floor(result)].g;
+      lerpedColor.b = result % 1 + world.terrainGradient[Math.floor(result)].b;
 
-      newPNG.data[idx] = world.terrainGradient[result].r;
-      newPNG.data[idx + 1] = world.terrainGradient[result].g;
-      newPNG.data[idx + 2] = world.terrainGradient[result].b;
+      newPNG.data[idx] = lerpedColor.r;
+      newPNG.data[idx + 1] = lerpedColor.g;
+      newPNG.data[idx + 2] = lerpedColor.b;
       newPNG.data[idx + 3] = 255;
 
       worldX++;
