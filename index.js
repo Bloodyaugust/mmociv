@@ -83,7 +83,7 @@ function startServer () {
         chunksGenerated = 0,
         chunkFound, chunkX, chunkY, chunkWorld;
 
-      chunksCollection.find({_id: {$in: chunks}, world: req.query.world}).toArray().then(function (objects) {
+      chunksCollection.find({_id: {$in: chunks}}).toArray().then(function (objects) {
         if (chunks.length !== objects.length) {
           for (var i = 0; i < chunks.length; i++) {
             chunkFound = false;
@@ -108,12 +108,14 @@ function startServer () {
               chunksGenerated++;
 
               if (chunksGenerated === missingChunks.length) {
-                chunksCollection.find({_id: {$in: chunks}, world: req.query.world}).toArray().then(function (finalObjects) {
+                chunksCollection.find({_id: {$in: chunks}}).toArray().then(function (finalObjects) {
                   res.json(finalObjects);
                 });
               }
             });
           }
+        } else {
+          res.json(objects);
         }
       });
     });
