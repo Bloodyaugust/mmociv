@@ -4,26 +4,50 @@ var http = require('http').Server(app);
 var io = require('socket.io')(http);
 var constants = require('./app/constants.js');
 var noise = require('./app/components/perlin.js').noise;
+var serialize = require('./app/components/serialize.js').serialize;
 var png = require('pngjs').PNG;
 var fs = require('fs');
 var mustache = require('mustache');
+var mongoClient = require('mongodb').MongoClient;
+var assert = require('assert');
+var streamToArray = require('stream-to-array');
 
-var templates = {}, partials = {}, world = {chunks: []};
+var templates = {}, partials = {}, worlds = {}, dbConnection, worldCollection, chunksCollection, terrainGradients;
 
 var runArg = (process.argv[2]);
 
+process.on('exit', function () {
+  dbConnection.close();
+});
+
 switch (runArg) {
   case 'generate':
-    generateWorld();
-    break;
-  default:
-    generateWorld({
-      callback: function () {
-        loadWorld();
-        startServer();
-      }
+    dbConnect(function () {
+      generateWorld();
     });
     break;
+  default:
+    dbConnect(function () {
+      loadWorlds();
+      startServer();
+    });
+    /**loadWorld();
+    startServer();**/
+    break;
+}
+
+function dbConnect (callback) {
+  mongoClient.connect('mongodb://localhost:27017/mmociv', function(err, db) {
+    assert.equal(null, err);
+    console.log("Connected correctly to server");
+
+    dbConnection = db;
+
+    worldCollection = dbConnection.collection('worlds');
+    chunksCollection = dbConnection.collection('chunks');
+
+    callback();
+  });
 }
 
 function startServer () {
@@ -36,12 +60,61 @@ function startServer () {
     app.use(express.static('app'));
 
     app.get('/', function (req, res) {
-      res.send(mustache.render(templates['app/templates/index.mustache'], world, partials));
+      res.send(mustache.render(templates['app/templates/index.mustache'], {}, partials));
     });
 
-    app.get('/world/chunks/:file', function (req, res) {
-      res.sendFile('./world/chunks/' + req.params.file, {
-        root: __dirname
+    app.get('/world/chunk/', function (req, res) {
+      var chunk = chunksCollection.find({x: parseInt(req.query.chunkX), y: parseInt(req.query.chunkY), world: req.query.world});
+
+      chunk.toArray().then(function (objects) {
+        if (objects.length) {
+          res.json(objects);
+        } else {
+          generateChunk(parseInt(req.query.chunkX), parseInt(req.query.chunkY), worlds[req.query.world], function (newChunk) {
+            res.json(newChunk);
+          });
+        }
+      });
+    });
+
+    app.get('/world/chunks/', function (req, res) {
+      var chunks = JSON.parse(req.query.chunks),
+        missingChunks = [],
+        chunksGenerated = 0,
+        chunkFound, chunkX, chunkY, chunkWorld;
+
+      chunksCollection.find({_id: {$in: chunks}, world: req.query.world}).toArray().then(function (objects) {
+        if (chunks.length !== objects.length) {
+          for (var i = 0; i < chunks.length; i++) {
+            chunkFound = false;
+            for (var i2 = 0; i2 < objects.length; i2++) {
+              if (chunks[i] === objects[i2]._id) {
+                chunkFound = true;
+                break;
+              }
+            }
+
+            if (!chunkFound) {
+              missingChunks.push(chunks[i]);
+            }
+          }
+
+          for (i = 0; i < missingChunks.length; i++) {
+            chunkX = parseInt(missingChunks[i].split('.')[0]);
+            chunkY = parseInt(missingChunks[i].split('.')[1]);
+            chunkWorld = worlds[missingChunks[i].split('.')[2]];
+
+            generateChunk(chunkX, chunkY, chunkWorld, function () {
+              chunksGenerated++;
+
+              if (chunksGenerated === missingChunks.length) {
+                chunksCollection.find({_id: {$in: chunks}, world: req.query.world}).toArray().then(function (finalObjects) {
+                  res.json(finalObjects);
+                });
+              }
+            });
+          }
+        }
       });
     });
 
@@ -87,50 +160,47 @@ function loadTemplates (callback) {
 function generateWorld (config) {
   var remainingChunks = (constants['WORLD_SIDE'] * constants['WORLD_SIDE']) / (constants['CHUNK_SIDE'] * constants['CHUNK_SIDE']),
     world = {
+      _id: 'world',
       name: 'world',
-      chunks: [],
-      numChunks: remainingChunks,
       terrainGradientPath: 'terrain-gradient.png',
+      seed: config ? config.seed : Math.random()
     };
 
-  noise.seed(config ? config.seed : Math.random());
+  worldCollection.save(world, {}, function () {
+    console.log('wrote new world to database');
 
-  loadWorldTerrainGradient('world/' + world.terrainGradientPath, world, function () {
-    for (var i = 0; remainingChunks > 0; remainingChunks--) {
-      generateChunk(i, world);
-      console.log('generating chunk: ' + i);
-      i++;
-    }
-
-    fs.writeFile('world/world.cfg', JSON.stringify(world), function (err) {
-      if (err) throw err;
-      console.log('World saved');
-
-      config.callback();
-    });
+    process.exit();
   });
 }
 
-function loadWorld () {
-  fs.readFile('world/world.cfg', 'utf8', function (err, data) {
-    if (err) throw err;
-    world = JSON.parse(data);
-    world.chunks = [];
+function loadWorlds () {
+  var worldObjects = worldCollection.find();
 
-    for (var i = 0; i < world.numChunks; i++) {
-      world.chunks.push({
-        image: '/world/chunks/world_chunk' + i + '.png'
-      });
+  worldObjects.toArray().then(function (objects) {
+    for (var i = 0; i < objects.length; i++) {
+      (function (index) {
+        loadWorldTerrainGradient('resources/' + objects[index].terrainGradientPath, objects[index], function () {
+          worlds[objects[index].name] = objects[index];
+          console.log('world loaded: ' + objects[index].name);
+        });
+      })(i);
     }
-
-    loadWorldTerrainGradient('world/' + world.terrainGradientPath, world, function () {});
   });
 }
 
-function generateChunk (chunkIndex, world) {
-  var initialWorldX = (chunkIndex % (constants['WORLD_SIDE'] / constants['CHUNK_SIDE'])) * constants['CHUNK_SIDE'],
-  initialWorldY = Math.floor(chunkIndex / (constants['WORLD_SIDE'] / constants['CHUNK_SIDE'])) * constants['CHUNK_SIDE'],
+function generateChunk (chunkX, chunkY, world, callback) {
+  var initialWorldX = chunkX,
+  initialWorldY = chunkY,
   newPNG, idx, worldX, worldY;
+
+  var newChunk = {
+    _id: chunkX + '.' + chunkY + '.' + world._id,
+    world: world._id,
+    x: chunkX,
+    y: chunkY,
+  };
+
+  noise.seed(world.seed);
 
   newPNG = new png({
     width: constants['CHUNK_SIDE'],
@@ -144,7 +214,7 @@ function generateChunk (chunkIndex, world) {
       result = noise.sumOctaveSimplex2({
         x: worldX,
         y: worldY,
-        iterations: 16,
+        iterations: 2,
         persistence: 0.6,
         scale: 0.00005
       });
@@ -163,11 +233,11 @@ function generateChunk (chunkIndex, world) {
     worldY++;
   }
 
-  newPNG.pack().pipe(fs.createWriteStream('world/chunks/world_chunk' + chunkIndex + '.png'));
-  world.chunks.push({
-    image: '/world/chunks/world_chunk' + chunkIndex + '.png'
-  });
-  console.log('Wrote image file: ' + 'world/chunks/world_chunk' + chunkIndex + '.png');
+  newPNG.pack().pipe(serialize.pngToBase64(function (imageString) {
+    newChunk.image = imageString;
+    chunksCollection.save(newChunk);
+    callback(newChunk);
+  }));
 }
 
 function loadWorldTerrainGradient (path, world, callback) {
