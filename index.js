@@ -216,15 +216,18 @@ function generateChunk (chunkX, chunkY, world, callback) {
         y: worldY,
         iterations: 2,
         persistence: 0.6,
-        scale: 0.00005
+        scale: 0.001
       });
       idx = (constants['CHUNK_SIDE'] * y + x) << 2;
+      lerpedColor = {};
 
-      result = Math.floor(result);
+      lerpedColor.r = result % 1 + world.terrainGradient[Math.floor(result)].r;
+      lerpedColor.g = result % 1 + world.terrainGradient[Math.floor(result)].g;
+      lerpedColor.b = result % 1 + world.terrainGradient[Math.floor(result)].b;
 
-      newPNG.data[idx] = world.terrainGradient[result].r;
-      newPNG.data[idx + 1] = world.terrainGradient[result].g;
-      newPNG.data[idx + 2] = world.terrainGradient[result].b;
+      newPNG.data[idx] = lerpedColor.r;
+      newPNG.data[idx + 1] = lerpedColor.g;
+      newPNG.data[idx + 2] = lerpedColor.b;
       newPNG.data[idx + 3] = 255;
 
       worldX++;
