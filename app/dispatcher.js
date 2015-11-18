@@ -15,5 +15,5 @@
     listeners.push(callback);
   };
 
-  app.socket.on('', app.dispatcher.dispatch);
+  //app.socket.on('', app.dispatcher.dispatch);
 })(window.app.dispatcher = {});
