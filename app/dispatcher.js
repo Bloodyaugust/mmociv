@@ -7,7 +7,11 @@
         listeners[i](data);
       }
     } else {
-      app.socket.emit('', data);
+      //app.socket.emit('', data);
+      $.ajax(data.request).success(function (response) {
+        console.log(response);
+        dispatcher.dispatch(response);
+      });
     }
   };
 

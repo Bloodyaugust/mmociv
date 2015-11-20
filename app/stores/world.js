@@ -1,7 +1,12 @@
 (function (world) {
   var state = {
-    gameState: {},
-    clientState: {}
+    gameState: {
+      chunks: {},
+      chunkArray: []
+    },
+    clientState: {
+      world: 'world'
+    }
   },
   listeners = [];
 
@@ -12,6 +17,21 @@
     }
 
     if (data.type === 'client') {
+      world.emit();
+    }
+
+    if (data.type === 'chunks') {
+      for (var i = 0; i < data.chunks.length; i++) {
+        state.gameState.chunks[data.chunks[i]._id] = data.chunks[i];
+      }
+
+      state.gameState.chunkArray = [];
+      for (var chunk in state.gameState.chunks) {
+        if (state.gameState.chunks.hasOwnProperty(chunk)) {
+          state.gameState.chunkArray.push(state.gameState.chunks[chunk]);
+        }
+      }
+
       world.emit();
     }
   };

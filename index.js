@@ -11,6 +11,8 @@ var mustache = require('mustache');
 var mongoClient = require('mongodb').MongoClient;
 var assert = require('assert');
 var streamToArray = require('stream-to-array');
+var bodyParser = require('body-parser');
+var multer = require('multer');
 
 var templates = {}, partials = {}, worlds = {}, dbConnection, worldCollection, chunksCollection, terrainGradients;
 
@@ -57,7 +59,11 @@ function startServer () {
     });
 
     app.use(express.static('bower_components'));
+    app.use(express.static('node_modules'));
     app.use(express.static('app'));
+
+    app.use(bodyParser.json());
+    app.use(bodyParser.urlencoded({extended: true}));
 
     app.get('/', function (req, res) {
       res.send(mustache.render(templates['app/templates/index.mustache'], {}, partials));
@@ -77,8 +83,8 @@ function startServer () {
       });
     });
 
-    app.get('/world/chunks/', function (req, res) {
-      var chunks = JSON.parse(req.query.chunks),
+    app.post('/world/chunks/', function (req, res) {
+      var chunks = req.body.chunks,
         missingChunks = [],
         chunksGenerated = 0,
         chunkFound, chunkX, chunkY, chunkWorld;
@@ -99,23 +105,20 @@ function startServer () {
             }
           }
 
-          for (i = 0; i < missingChunks.length; i++) {
-            chunkX = parseInt(missingChunks[i].split('.')[0]);
-            chunkY = parseInt(missingChunks[i].split('.')[1]);
-            chunkWorld = worlds[missingChunks[i].split('.')[2]];
-
-            generateChunk(chunkX, chunkY, chunkWorld, function () {
-              chunksGenerated++;
-
-              if (chunksGenerated === missingChunks.length) {
-                chunksCollection.find({_id: {$in: chunks}}).toArray().then(function (finalObjects) {
-                  res.json(finalObjects);
-                });
-              }
+          console.log('grabbing missing chunks: ', missingChunks);
+          generateChunks(missingChunks, function () {
+            chunksCollection.find({_id: {$in: chunks}}).toArray().then(function (finalObjects) {
+              res.json({
+                type: 'chunks',
+                chunks: finalObjects,
+              });
             });
-          }
+          });
         } else {
-          res.json(objects);
+          res.json({
+            type: 'chunks',
+            chunks: objects,
+          });
         }
       });
     });
@@ -129,8 +132,13 @@ function startServer () {
 }
 
 function loadTemplates (callback) {
-  var templateFiles = ['app/templates/index.mustache'],
-    partialFiles = ['app/templates/partials/world.mustache'],
+  var templateFiles = [
+    'app/templates/index.mustache',
+    'app/templates/world.mustache',
+    ],
+    partialFiles = [
+      'app/templates/partials/chunk.mustache'
+    ],
     filesTotal = templateFiles.length + partialFiles.length,
     filesLoaded = 0;
 
@@ -190,59 +198,82 @@ function loadWorlds () {
   });
 }
 
-function generateChunk (chunkX, chunkY, world, callback) {
-  var initialWorldX = chunkX,
-  initialWorldY = chunkY,
-  newPNG, idx, worldX, worldY;
+function generateChunks (chunks, callback) {
+  var chunksGenerated = 0,
+    initialWorldX, initialWorldY, chunkWorld, chunkX, chunkY, newPNG, idx, worldX, worldY, newChunk;
 
-  var newChunk = {
-    _id: chunkX + '.' + chunkY + '.' + world._id,
-    world: world._id,
-    x: chunkX,
-    y: chunkY,
-  };
+  console.log('generating chunks: ', chunks);
+  for (var i = 0; i < chunks.length; i++) {
+    chunkX = parseInt(chunks[i].split('.')[0]);
+    chunkY = parseInt(chunks[i].split('.')[1]);
+    chunkWorld = worlds[chunks[i].split('.')[2]];
+    console.log('chunk coords and world: ', chunkX, chunkY, chunkWorld._id);
+    initialWorldX = chunkX * constants['CHUNK_SIDE'];
+    initialWorldY = chunkY * constants['CHUNK_SIDE'];
+    console.log(initialWorldX, initialWorldY);
 
-  noise.seed(world.seed);
+    newChunk = {
+      _id: chunks[i],
+      world: chunkWorld._id,
+      x: chunkX,
+      y: chunkY,
+    };
+    console.log(newChunk);
 
-  newPNG = new png({
-    width: constants['CHUNK_SIDE'],
-    height: constants['CHUNK_SIDE']
-  });
+    noise.seed(chunkWorld.seed);
+    console.log(chunkWorld.seed);
 
-  worldX = initialWorldX;
-  worldY = initialWorldY;
-  for (var y = 0; y < constants['CHUNK_SIDE']; y++) {
-    for (var x = 0; x < constants['CHUNK_SIDE']; x++) {
-      result = noise.sumOctaveSimplex2({
-        x: worldX,
-        y: worldY,
-        iterations: 2,
-        persistence: 0.6,
-        scale: 0.001
-      });
-      idx = (constants['CHUNK_SIDE'] * y + x) << 2;
-      lerpedColor = {};
+    newPNG = new png({
+      width: constants['CHUNK_SIDE'],
+      height: constants['CHUNK_SIDE']
+    });
 
-      lerpedColor.r = result % 1 + world.terrainGradient[Math.floor(result)].r;
-      lerpedColor.g = result % 1 + world.terrainGradient[Math.floor(result)].g;
-      lerpedColor.b = result % 1 + world.terrainGradient[Math.floor(result)].b;
-
-      newPNG.data[idx] = lerpedColor.r;
-      newPNG.data[idx + 1] = lerpedColor.g;
-      newPNG.data[idx + 2] = lerpedColor.b;
-      newPNG.data[idx + 3] = 255;
-
-      worldX++;
-    }
     worldX = initialWorldX;
-    worldY++;
-  }
+    worldY = initialWorldY;
+    console.log('new chunk coords: ', worldX, worldY);
+    for (var y = 0; y < constants['CHUNK_SIDE']; y++) {
+      for (var x = 0; x < constants['CHUNK_SIDE']; x++) {
+        result = noise.sumOctaveSimplex2({
+          x: worldX,
+          y: worldY,
+          iterations: 2,
+          persistence: 0.6,
+          scale: 0.001
+        });
+        idx = (constants['CHUNK_SIDE'] * y + x) << 2;
+        lerpedColor = {};
 
-  newPNG.pack().pipe(serialize.pngToBase64(function (imageString) {
-    newChunk.image = imageString;
-    chunksCollection.save(newChunk);
-    callback(newChunk);
-  }));
+        lerpedColor.r = result % 1 + chunkWorld.terrainGradient[Math.floor(result)].r;
+        lerpedColor.g = result % 1 + chunkWorld.terrainGradient[Math.floor(result)].g;
+        lerpedColor.b = result % 1 + chunkWorld.terrainGradient[Math.floor(result)].b;
+
+        newPNG.data[idx] = lerpedColor.r;
+        newPNG.data[idx + 1] = lerpedColor.g;
+        newPNG.data[idx + 2] = lerpedColor.b;
+        newPNG.data[idx + 3] = 255;
+
+        worldX++;
+      }
+      worldX = initialWorldX;
+      worldY++;
+    }
+    console.log('new chunk: ', newChunk);
+
+    (function (savingChunk, savingImage) {
+      console.log('serializing image for chunk: ', savingChunk);
+      savingImage.pack().pipe(serialize.pngToBase64(function (imageString) {
+        savingChunk.image = imageString;
+        chunksCollection.save(savingChunk);
+        chunksGenerated++;
+        console.log('chunk generated and saved: ', savingChunk._id, chunksGenerated);
+        console.log('chunk image: ', imageString);
+
+        if (chunksGenerated === chunks.length) {
+          callback();
+        }
+      }));
+    })(newChunk, newPNG);
+  }
 }
 
 function loadWorldTerrainGradient (path, world, callback) {
