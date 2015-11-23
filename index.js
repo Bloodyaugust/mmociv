@@ -200,10 +200,13 @@ function loadWorlds () {
 
 function generateChunks (chunks, callback) {
   var chunksGenerated = 0,
-    initialWorldX, initialWorldY, chunkWorld, chunkX, chunkY, newPNG, idx, worldX, worldY, newChunk;
+    completeChunks = [],
+    writeIndex = 0,
+    initialWorldX, initialWorldY, chunkWorld, chunkX, chunkY, idx, worldX, worldY, newCompleteChunk;
 
   console.log('generating chunks: ', chunks);
   for (var i = 0; i < chunks.length; i++) {
+    newCompleteChunk = {};
     chunkX = parseInt(chunks[i].split('.')[0]);
     chunkY = parseInt(chunks[i].split('.')[1]);
     chunkWorld = worlds[chunks[i].split('.')[2]];
@@ -212,18 +215,17 @@ function generateChunks (chunks, callback) {
     initialWorldY = chunkY * constants['CHUNK_SIDE'];
     console.log(initialWorldX, initialWorldY);
 
-    newChunk = {
+    newCompleteChunk.chunk = {
       _id: chunks[i],
       world: chunkWorld._id,
       x: chunkX,
       y: chunkY,
     };
-    console.log(newChunk);
 
     noise.seed(chunkWorld.seed);
     console.log(chunkWorld.seed);
 
-    newPNG = new png({
+    newCompleteChunk.image = new png({
       width: constants['CHUNK_SIDE'],
       height: constants['CHUNK_SIDE']
     });
@@ -247,33 +249,45 @@ function generateChunks (chunks, callback) {
         lerpedColor.g = result % 1 + chunkWorld.terrainGradient[Math.floor(result)].g;
         lerpedColor.b = result % 1 + chunkWorld.terrainGradient[Math.floor(result)].b;
 
-        newPNG.data[idx] = lerpedColor.r;
-        newPNG.data[idx + 1] = lerpedColor.g;
-        newPNG.data[idx + 2] = lerpedColor.b;
-        newPNG.data[idx + 3] = 255;
+        newCompleteChunk.image.data[idx] = lerpedColor.r;
+        newCompleteChunk.image.data[idx + 1] = lerpedColor.g;
+        newCompleteChunk.image.data[idx + 2] = lerpedColor.b;
+        newCompleteChunk.image.data[idx + 3] = 255;
 
         worldX++;
       }
       worldX = initialWorldX;
       worldY++;
     }
-    console.log('new chunk: ', newChunk);
 
-    (function (savingChunk, savingImage) {
-      console.log('serializing image for chunk: ', savingChunk);
-      savingImage.pack().pipe(serialize.pngToBase64(function (imageString) {
-        savingChunk.image = imageString;
-        chunksCollection.save(savingChunk);
-        chunksGenerated++;
-        console.log('chunk generated and saved: ', savingChunk._id, chunksGenerated);
-        console.log('chunk image: ', imageString);
-
-        if (chunksGenerated === chunks.length) {
-          callback();
-        }
-      }));
-    })(newChunk, newPNG);
+    completeChunks.push(newCompleteChunk);
   }
+
+  console.log('writing first chunk', completeChunks[0].chunk);
+  writeChunk(completeChunks[0].chunk, completeChunks[0].image, writeChunkCallback);
+
+  function writeChunkCallback () {
+    writeIndex++;
+
+    console.log('chunk written: ' + (writeIndex - 1));
+    if (writeIndex < completeChunks.length) {
+      console.log('Starting write for chunk: ', writeIndex);
+      writeChunk(completeChunks[writeIndex].chunk, completeChunks[writeIndex].image, writeChunkCallback);
+    } else {
+      console.log('Chunk writing complete.');
+      callback();
+    }
+  }
+}
+
+function writeChunk (chunk, image, callback) {
+  console.log('serializing image for chunk: ', chunk);
+  image.pack().pipe(serialize.pngToBase64(function (imageString) {
+    chunk.image = imageString;
+    chunksCollection.save(chunk);
+    console.log('chunk generated and saved: ', chunk._id);
+    callback();
+  }));
 }
 
 function loadWorldTerrainGradient (path, world, callback) {
