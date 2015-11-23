@@ -31,7 +31,7 @@ window.app = {};
     })(i);
   }
 
-  window.setInterval(function () {
+  /**window.setInterval(function () {
     app.actions.heartbeat();
-  }, 1000);
+  }, 1000);**/
 })(window.app);

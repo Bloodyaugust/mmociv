@@ -12,6 +12,7 @@ $text-color: white;
 body {
   background-color: $background-color;
   color: $text-color;
+  height: 100%;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
@@ -89,6 +90,11 @@ header {
   }
 }
 
+html {
+  height: 100%;
+  width: 100%;
+}
+
 input {
   background-color: $material-color;
   border: none;
@@ -117,12 +123,14 @@ input:focus {
 }
 
 section.main-content {
-  width: 100%;
+  height: 100%;
   text-align: center;
+  width: 100%;
 
   img {
     float: left;
     margin: 0;
     width: (100 / 12) * 1%;
+    height: (100 / 12) * 1%;
   }
 }

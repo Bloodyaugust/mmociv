@@ -5,7 +5,15 @@
       chunkArray: []
     },
     clientState: {
-      world: 'world'
+      world: 'world',
+      viewport: {
+        height: 12,
+        position: {
+          x: 0,
+          y: 0
+        },
+        width: 12
+      }
     }
   },
   listeners = [];
@@ -44,6 +52,10 @@
     for (var i = 0; i < listeners.length; i++) {
       listeners[i](state);
     }
+  };
+
+  world.getState = function () {
+    return state;
   };
 
   app.dispatcher.register(world.update);

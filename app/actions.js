@@ -11,17 +11,25 @@
       url: '/world/chunks/',
       method: 'POST',
       data: {
-        chunks: []
+        chunks: chunks
       }
     };
-
-    for (var i = 0; i < chunks.length; i++) {
-      request.data.chunks.push(chunks[i]);
-    }
 
     app.dispatcher.dispatch({
       remote: true,
       request: request
     });
+  };
+
+  actions.loadViewport = function (viewport) {
+    var chunks = [];
+
+    for (var y = 0; y < viewport.height; y++) {
+      for (var x = 0; x < viewport.width; x++) {
+        chunks.push((x + viewport.position.x) + '.' + (y + viewport.position.y) + '.' + 'world');
+      }
+    }
+
+    actions.getChunks(chunks);
   };
 })(window.app.actions = {});
