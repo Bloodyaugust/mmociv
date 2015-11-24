@@ -24,12 +24,28 @@
   actions.loadViewport = function (viewport) {
     var chunks = [];
 
-    for (var y = 0; y < viewport.height; y++) {
-      for (var x = 0; x < viewport.width; x++) {
-        chunks.push((x + viewport.position.x) + '.' + (y + viewport.position.y) + '.' + 'world');
+    for (var y = viewport.y; y < viewport.y + viewport.height; y++) {
+      for (var x = viewport.x; x < viewport.x + viewport.width; x++) {
+        chunks.push(x + '.' + y + '.' + 'world');
       }
     }
 
     actions.getChunks(chunks);
+  };
+
+  actions.moveViewport = function (vector) {
+    app.dispatcher.dispatch({
+      type: 'viewport:move',
+      x: vector.x || 0,
+      y: vector.y || 0
+    });
+  };
+
+  actions.setViewport = function (vector) {
+    app.dispatcher.dispatch({
+      type: 'viewport:set',
+      x: vector.x || 0,
+      y: vector.y || 0
+    });
   };
 })(window.app.actions = {});
