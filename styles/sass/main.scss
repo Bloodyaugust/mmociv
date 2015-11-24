@@ -123,7 +123,7 @@ input:focus {
 }
 
 section.main-content {
-  height: 100%;
+  height: calc(100% - 50px);
   text-align: center;
   width: 100%;
 
@@ -132,5 +132,13 @@ section.main-content {
     margin: 0;
     width: (100 / 12) * 1%;
     height: (100 / 12) * 1%;
+  }
+
+  .world {
+    height: 100%;
+
+    .chunks {
+      height: 100%;
+    }
   }
 }
