@@ -2,11 +2,14 @@ window.app = {};
 (function (app) {
   var templates = [
     'index',
+    'viewport_controls',
     'world',
     ],
     partials = [
       'chunk'
-    ];
+    ],
+    templatesLoaded = 0,
+    totalTemplates = templates.length + partials.length;
 
   app.stores = {};
   app.templates = {
@@ -19,6 +22,11 @@ window.app = {};
     (function (iterator) {
       $.get('templates/' + templates[iterator] + '.mustache').success(function (template) {
         app.templates[templates[iterator]] = template;
+        templatesLoaded++;
+
+        if (templatesLoaded === totalTemplates) {
+          onloadFinish();
+        }
       });
     })(i);
   }
@@ -27,9 +35,24 @@ window.app = {};
     (function (iterator) {
       $.get('templates/partials/' + partials[iterator] + '.mustache').success(function (template) {
         app.templates.partials[partials[iterator]] = template;
+        templatesLoaded++;
+
+        if (templatesLoaded === totalTemplates) {
+          onloadFinish();
+        }
       });
     })(i);
   }
+
+  function onloadFinish () {
+    for (var view in app.views) {
+      if (app.views.hasOwnProperty(view)) {
+        if (app.views[view].onload) {
+          app.views[view].onload();
+        }
+      }
+    }
+  };
 
   /**window.setInterval(function () {
     app.actions.heartbeat();

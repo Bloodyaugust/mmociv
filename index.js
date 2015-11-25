@@ -134,6 +134,7 @@ function startServer () {
 function loadTemplates (callback) {
   var templateFiles = [
     'app/templates/index.mustache',
+    'app/templates/viewport_controls.mustache',
     'app/templates/world.mustache',
     ],
     partialFiles = [

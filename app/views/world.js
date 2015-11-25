@@ -1,10 +1,17 @@
 (function (world) {
   var $body = $('body'),
+    $controls = $body.find('.controls'),
     $mainContent = $body.find('.main-content'),
     $world = $body.find('.world'),
     $chunks = $body.find('.chunks');
 
   var lastView = '', lastDay = 0;
+
+  world.onload = function () {
+    app.actions.loadViewport(window.app.stores.world.getState().clientState.viewport);
+
+    $controls.html(Mustache.render(app.templates['viewport_controls'], {}));
+  };
 
   world.render = function (data) {
     var sortedChunks = data.gameState.chunkArray;
@@ -12,10 +19,6 @@
     sortedChunks.sort(sortChunks);
     $mainContent.html(Mustache.render(app.templates.world, data.gameState, app.templates.partials));
   };
-
-  $(function () {
-    app.actions.loadViewport(window.app.stores.world.getState().clientState.viewport);
-  });
 
   function sortChunks (a, b) {
     if (a.y === b.y) {

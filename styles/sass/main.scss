@@ -142,3 +142,13 @@ section.main-content {
     }
   }
 }
+
+section.controls {
+  background-color: grey;
+  height: calc(80% - 50px);
+  min-width: 50px;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+}
